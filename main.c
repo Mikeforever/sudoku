@@ -10,6 +10,7 @@ int main(int argc, char* argv[])
     int continuer = 1;
     int choix = 0;
     int nbEssais = 0;
+    int tempsAffichage = TEMPS_AFFICHAGE;
 
     // Initialisation du mode vidéo
     SDL_Surface *ecran = NULL, *texte = NULL;
@@ -70,19 +71,23 @@ int main(int argc, char* argv[])
             nbEssais = 0;
 
             // Lancement de la recherche de la solution
-            chercherSolution(grilleSolution, grille, ecran, texte, police, &nbEssais);
+            chercherSolution(grilleSolution, grille, ecran, texte, police, &nbEssais, &tempsAffichage);
+
+            // Si le temps d'affichage a été réduit à 0, on le replace à 1 pour pouvoir relancer le programme
+            if (tempsAffichage == 0)
+                tempsAffichage++;
 
             // Affichage final
             if (validationGrille(grilleSolution))
             {
-                affichage(grilleSolution, grille, ecran, texte, police, -1, -1, "Résultat trouvé", &nbEssais);
+                affichage(grilleSolution, grille, ecran, texte, police, -1, -1, "Résultat trouvé", &nbEssais, NULL);
 
                 // Stockage du résultat dans un fichier de résultat
                 stockageSolution(grilleSolution, NOM_FICHIER_RESULTAT);
             }
             else
             {
-                affichage(grilleSolution, grille, ecran, texte, police, -1, -1, "Pas de résultat", &nbEssais);
+                affichage(grilleSolution, grille, ecran, texte, police, -1, -1, "Pas de résultat", &nbEssais, NULL);
             }
 
             // Pause pour l'affichage du résultat
@@ -116,7 +121,7 @@ int main(int argc, char* argv[])
             remplissageGrilleNeutre(grilleSolution);
             nbEssais = 0;
 
-            modeEdition(grille, grilleSolution, ecran, texte, police, &nbEssais);
+            modeEdition(grille, grilleSolution, ecran, texte, police, &nbEssais, NULL);
         }
     }
 

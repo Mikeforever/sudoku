@@ -1,6 +1,6 @@
 #include "interface.h"
 
-void chercherSolution(int grille[][TAILLE_TABLEAU], int grilleOrigine[][TAILLE_TABLEAU], SDL_Surface *ecran, SDL_Surface *texte, TTF_Font *police, int *nbEssais)
+void chercherSolution(int grille[][TAILLE_TABLEAU], int grilleOrigine[][TAILLE_TABLEAU], SDL_Surface *ecran, SDL_Surface *texte, TTF_Font *police, int *nbEssais, int *tempsAffichage)
 {
     int iNeutre = 0, jNeutre = 0, valeurSuivante = 1;
 
@@ -18,7 +18,8 @@ void chercherSolution(int grille[][TAILLE_TABLEAU], int grilleOrigine[][TAILLE_T
             grille[iNeutre][jNeutre] = valeurSuivante;
 
             // Affichage de la grille
-            affichage(grille, grilleOrigine, ecran, texte, police, iNeutre, jNeutre, "En cours", nbEssais);
+            if (*tempsAffichage > 0)
+                affichage(grille, grilleOrigine, ecran, texte, police, iNeutre, jNeutre, "En cours", nbEssais, tempsAffichage);
             (*nbEssais)++;
 
             // Suppression de la valeur de la case pour le moment
@@ -31,7 +32,7 @@ void chercherSolution(int grille[][TAILLE_TABLEAU], int grilleOrigine[][TAILLE_T
                 grille[iNeutre][jNeutre] = valeurSuivante;
 
                 // Nouvelle récursion sur la case suivante
-                chercherSolution(grille, grilleOrigine, ecran, texte, police, nbEssais);
+                chercherSolution(grille, grilleOrigine, ecran, texte, police, nbEssais, tempsAffichage);
             }
 
             // Etant ressorti de la boucle, valeur suivante
@@ -79,7 +80,7 @@ void affichageEcranAccueil(SDL_Surface *ecran, SDL_Surface *texte)
     TTF_CloseFont(police);
 }
 
-void affichage(int grille[][TAILLE_TABLEAU], int grilleOrigine[][TAILLE_TABLEAU], SDL_Surface *ecran, SDL_Surface *texte, TTF_Font *police, int iChoix, int jChoix, int mode[], int *nbEssais)
+void affichage(int grille[][TAILLE_TABLEAU], int grilleOrigine[][TAILLE_TABLEAU], SDL_Surface *ecran, SDL_Surface *texte, TTF_Font *police, int iChoix, int jChoix, int mode[], int *nbEssais, int *tempsAffichage)
 {
 
     SDL_Color couleurNoire = {0, 0, 0};
@@ -92,10 +93,16 @@ void affichage(int grille[][TAILLE_TABLEAU], int grilleOrigine[][TAILLE_TABLEAU]
     TTF_Font *petitePolice = NULL;
     char txt[] = " 0 ";
     char nbEssaisTxt[20] = {0};
+    char nbTempsAffichage[3] = {0};
     SDL_Rect position;
     int i,j;
     int tempsActuel = 0, tempsPrecedent = 0;
+    int modifTemps = 0;
     int continuer = 1;
+    int tempsAttente = TEMPS_AFFICHAGE;
+
+    if (tempsAffichage != NULL)
+        tempsAttente = *tempsAffichage;
 
     SDL_FillRect(ecran, NULL, SDL_MapRGB(ecran->format, 0, 0, 0));
 
@@ -109,19 +116,38 @@ void affichage(int grille[][TAILLE_TABLEAU], int grilleOrigine[][TAILLE_TABLEAU]
             case SDL_QUIT:
                 continuer = 0;
                 break;
+            case SDL_KEYUP:
+                switch (event.key.keysym.sym)
+                {
+                    case SDLK_DOWN:
+                        if (tempsAttente > 1)
+                            modifTemps = -1;
+                        break;
+                    case SDLK_UP:
+                        if (tempsAttente < 20)
+                        modifTemps = 1;
+                        break;
+                    case SDLK_RETURN:
+                        if (tempsAffichage != NULL)
+                            *tempsAffichage = 0;
+                }
+                break;
         }
 
         tempsActuel = SDL_GetTicks();
-        if (tempsActuel - tempsPrecedent > TEMPS_AFFICHAGE) /* Si TEMPS_AFFICHAGE ms se sont écoulées depuis le dernier tour de boucle */
+        if (tempsActuel - tempsPrecedent > tempsAttente) /* Si TEMPS_AFFICHAGE ms se sont écoulées depuis le dernier tour de boucle */
         {
             continuer = 0;
             tempsPrecedent = tempsActuel; /* Le temps "actuel" devient le temps "precedent" pour nos futurs calculs */
         }
         else /* Si ça fait moins de TEMPS_AFFICHAGE ms depuis le dernier tour de boucle, on endort le programme le temps qu'il faut */
         {
-           SDL_Delay(TEMPS_AFFICHAGE - (tempsActuel - tempsPrecedent));
+           SDL_Delay(tempsAttente - (tempsActuel - tempsPrecedent));
         }
     }
+
+    if ((modifTemps) && (tempsAffichage != NULL))
+        *tempsAffichage += modifTemps;
 
 
     for (i=0;i<TAILLE_TABLEAU;i++)
@@ -182,6 +208,19 @@ void affichage(int grille[][TAILLE_TABLEAU], int grilleOrigine[][TAILLE_TABLEAU]
         TTF_CloseFont(petitePolice);
     }
 
+    // Affichage du temps d'affichage entre deux essais
+    if (tempsAffichage != NULL)
+    {
+        petitePolice = TTF_OpenFont(NOM_POLICE, 10);
+        sprintf(nbTempsAffichage, "%d", *tempsAffichage);
+        texte = TTF_RenderText_Shaded(petitePolice, nbTempsAffichage, couleurBlanche, couleurNoire);
+        position.y = TAILLE_SUDOKU_HAUTEUR - texte->h - TAILLE_BORDURE;
+        position.x = 0;
+        SDL_BlitSurface(texte, NULL, ecran, &position);
+
+        SDL_FreeSurface(texte);
+        TTF_CloseFont(petitePolice);
+    }
 
     SDL_Flip(ecran);
 }
@@ -247,7 +286,7 @@ void recherchePremierNeutre(int *i, int *j, int grille[][TAILLE_TABLEAU])
     }
 }
 
-void modeEdition(int grille[][TAILLE_TABLEAU], int grilleSolution[][TAILLE_TABLEAU], SDL_Surface *ecran, SDL_Surface *texte, TTF_Font *police, int *nbEssais)
+void modeEdition(int grille[][TAILLE_TABLEAU], int grilleSolution[][TAILLE_TABLEAU], SDL_Surface *ecran, SDL_Surface *texte, TTF_Font *police, int *nbEssais, int *tempsAffichage)
 {
     int iChoix = -1, jChoix = -1, continuer = 1;
     SDL_Event event;
@@ -255,7 +294,7 @@ void modeEdition(int grille[][TAILLE_TABLEAU], int grilleSolution[][TAILLE_TABLE
     while (continuer)
     {
         // Affichage de la grille de base
-        affichage(grille, grilleSolution, ecran, texte, police, iChoix, jChoix, "Mode Edition", nbEssais);
+        affichage(grille, grilleSolution, ecran, texte, police, iChoix, jChoix, "Mode Edition", nbEssais, tempsAffichage);
 
         SDL_WaitEvent(&event);
         switch(event.type)
